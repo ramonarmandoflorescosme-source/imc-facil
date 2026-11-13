@@ -24,7 +24,7 @@ tablas = cargar_tablas()
 
 # Encabezado
 st.markdown("<h1 style='text-align: center; color: #1976D2; margin-bottom: 0;'>📊 IMC Fácil</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: gray;'>Evaluación Nutricional • Estándares OMS (2 a 19 años)</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: gray; margin-bottom: 5px;'>Evaluación Nutricional • Estándares OMS (2 a 19 años)</p>", unsafe_allow_html=True)
 st.divider()
 
 # Formulario de entrada
@@ -79,4 +79,4 @@ if calcular:
             st.error(f"⚠️ {e}")
 
 st.divider()
-st.markdown("<p style='text-align: center; color: gray; font-size: 0.85em;'>IMC Fácil v1.1 • Creado por RAFC (2026)</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: gray; font-size: 0.85em;'>IMC Fácil v1.0 • Creado por RAFC (2026)</p>", unsafe_allow_html=True)
