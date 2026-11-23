@@ -4,16 +4,15 @@ import numpy as np
 import pandas as pd
 
 # Ruta segura relativa al archivo actual
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).resolve().parent / "data"
 
 ARCHIVOS_OMS = {
-    ("masculino", "2_5"): "bmi_boys_2-to-5-years_zscores.xlsx",
-    ("femenino", "2_5"): "bmi_girls_2-to-5-years_zscores.xlsx",
     ("masculino", "5_19"): "bmi-boys-z-who-2007-exp.xlsx",
     ("femenino", "5_19"): "bmi-girls-z-who-2007-exp.xlsx",
     ("masculino", "0_5_dias"): "bfa-boys-zscore-expanded-tables.xlsx",
     ("femenino", "0_5_dias"): "bfa-girls-zscore-expanded-tables.xlsx",
 }
+
 
 def normalizar_sexo(sexo: str) -> str:
     s = sexo.lower().strip()
@@ -23,19 +22,26 @@ def normalizar_sexo(sexo: str) -> str:
         return "femenino"
     raise ValueError(f"Sexo no válido: {sexo}")
 
+
 def formula_lms(imc: float, L: float, M: float, S: float) -> float:
     """Aplica la ecuación estándar LMS de la OMS."""
     if L == 0:
         return math.log(imc / M) / S
     return ((imc / M) ** L - 1) / (L * S)
 
-def interpolar_lms(tabla: pd.DataFrame, col_tiempo: str, valor_tiempo: float) -> tuple[float, float, float]:
+
+def interpolar_lms(
+    tabla: pd.DataFrame, col_tiempo: str, valor_tiempo: float
+) -> tuple[float, float, float]:
     L = float(np.interp(valor_tiempo, tabla[col_tiempo], tabla["L"]))
     M = float(np.interp(valor_tiempo, tabla[col_tiempo], tabla["M"]))
     S = float(np.interp(valor_tiempo, tabla[col_tiempo], tabla["S"]))
     return L, M, S
 
-def calcular_puntaje_z_oms(imc: float, edad_meses: int, sexo: str, tablas: dict) -> float:
+
+def calcular_puntaje_z_oms(
+    imc: float, edad_meses: int, sexo: str, tablas: dict
+) -> float:
     sexo_norm = normalizar_sexo(sexo)
 
     # Menores de 61 meses (2 a 5 años) usan la tabla expandida en días
@@ -65,6 +71,7 @@ def calcular_puntaje_z_oms(imc: float, edad_meses: int, sexo: str, tablas: dict)
 
     return z
 
+
 def clasificar_bmi_oms(z: float, edad_meses: int) -> tuple[str, str]:
     """Devuelve (Categoría, Emoji indicador) según el grupo etario."""
     if z < -3:
@@ -73,15 +80,16 @@ def clasificar_bmi_oms(z: float, edad_meses: int) -> tuple[str, str]:
         return "Delgadez", "🟠"
 
     if edad_meses < 61:
-        if z > 3: return "Obesidad", "🔴"
-        if z > 2: return "Sobrepeso", "🟠"
-        if z > 1: return "Riesgo de sobrepeso", "🟡"
+        if z > 3:
+            return "Obesidad", "🔴"
+        if z > 2:
+            return "Sobrepeso", "🟠"
+        if z > 1:
+            return "Riesgo de sobrepeso", "🟡"
         return "Peso adecuado", "🟢"
     else:
-        if z > 2: return "Obesidad", "🔴"
-        if z > 1: return "Sobrepeso", "🟠"
+        if z > 2:
+            return "Obesidad", "🔴"
+        if z > 1:
+            return "Sobrepeso", "🟠"
         return "Peso adecuado", "🟢"
-
-
-
-
