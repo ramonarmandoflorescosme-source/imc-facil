@@ -9,16 +9,19 @@ from calculos_oms import (
 
 st.set_page_config(page_title="IMC Fácil", page_icon="📊", layout="centered")
 
+
 @st.cache_data
 def cargar_tablas():
     tablas = {}
+    faltantes = []
     for clave, nombre_archivo in ARCHIVOS_OMS.items():
         ruta = DATA_DIR / nombre_archivo
-        if not ruta.exists():
-            st.error(f"❌ No se encontró el archivo: `{ruta}`")
-            st.stop()
-        tablas[clave] = pd.read_excel(ruta)
-    return tablas
+        if ruta.exists():
+            tablas[clave] = pd.read_excel(ruta)
+        else:
+            faltantes.append(str(ruta))
+    return tablas, faltantes
+
 
 def clasificar_bmi_adulto(imc):
     if imc < 18.5:
@@ -34,7 +37,8 @@ def clasificar_bmi_adulto(imc):
     else:
         return "Obesidad grado III", "🚨"
 
-tablas = cargar_tablas()
+
+tablas, archivos_faltantes = cargar_tablas()
 
 # Encabezado
 st.markdown("<h1 style='text-align: center; color: #1976D2; margin-bottom: 0;'>📊 IMC Fácil</h1>", unsafe_allow_html=True)
@@ -119,10 +123,8 @@ if calcular:
                 st.markdown(f"**Diagnóstico:** {icono} **{clasificacion}**")
                 st.caption(f"Datos estandarizados: {peso_kg:.2f} kg | {talla_cm:.1f} cm | {edad_anios} años (Estándar adultos OMS)")
 
-        except ValueError as e:
+        except (ValueError, KeyError) as e:
             st.error(f"⚠️ {e}")
 
 st.divider()
 st.markdown("<p style='text-align: center; color: gray; font-size: 0.85em;'>IMC Fácil v1.0 • Creado por RAFC (2026)</p>", unsafe_allow_html=True)
-
-
