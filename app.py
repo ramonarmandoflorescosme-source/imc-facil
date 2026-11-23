@@ -1,8 +1,9 @@
-import streamlit as st
+from pathlib import Path
 import pandas as pd
+import streamlit as st
 from calculos_oms import (
-    DATA_DIR,
     ARCHIVOS_OMS,
+    DATA_DIR,
     calcular_puntaje_z_oms,
     clasificar_bmi_oms,
 )
@@ -10,17 +11,34 @@ from calculos_oms import (
 st.set_page_config(page_title="IMC Fácil", page_icon="📊", layout="centered")
 
 
+def _resolver_ruta_data(nombre_archivo: str) -> Path | None:
+    candidatas = [
+        DATA_DIR / nombre_archivo,
+        Path.cwd() / "data" / nombre_archivo,
+        Path(__file__).resolve().parent.parent / "data" / nombre_archivo,
+    ]
+    for ruta in candidatas:
+        if ruta.exists() and ruta.is_file():
+            return ruta
+    return None
+
+
 @st.cache_data(show_spinner="Cargando tablas de referencia OMS...")
 def cargar_tablas():
     tablas = {}
-    faltantes = []
+    problemas = []
+
     for clave, nombre_archivo in ARCHIVOS_OMS.items():
-        ruta = DATA_DIR / nombre_archivo
-        if ruta.exists():
-            tablas[clave] = pd.read_excel(ruta)
-        else:
-            faltantes.append(f"{clave} -> {nombre_archivo}")
-    return tablas, faltantes
+        ruta = _resolver_ruta_data(nombre_archivo)
+        if ruta is None:
+            problemas.append(f"{clave} -> `{nombre_archivo}` (no encontrado)")
+            continue
+        try:
+            tablas[clave] = pd.read_excel(ruta, engine="openpyxl")
+        except Exception as exc:
+            problemas.append(f"{clave} -> `{nombre_archivo}` (error al leer: {exc})")
+
+    return tablas, problemas
 
 
 def clasificar_bmi_adulto(imc):
@@ -38,25 +56,20 @@ def clasificar_bmi_adulto(imc):
         return "Obesidad grado III", "🚨"
 
 
-tablas, archivos_faltantes = cargar_tablas()
+tablas, problemas_archivos = cargar_tablas()
 
-# Encabezado
 st.markdown("<h1 style='text-align: center; color: #1976D2; margin-bottom: 0;'>📊 IMC Fácil</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: gray; margin-bottom: 5px;'>Evaluación Nutricional • Estándares OMS (Niños, Adolescentes y Adultos)</p>", unsafe_allow_html=True)
 st.divider()
 
-if archivos_faltantes:
-    st.warning(
-        "⚠️ Faltan archivos OMS en la carpeta `data/`:\n- " + "\n- ".join(archivos_faltantes)
-    )
+if problemas_archivos:
+    st.warning("⚠️ Problema con archivos OMS en `data/`:\n- " + "\n- ".join(problemas_archivos))
 
-# Selector de unidad de estatura fuera del formulario para que los campos cambien dinámicamente
 unidad_talla = st.selectbox(
     "📏 Unidad de Talla / Estatura",
     ["cm (Centímetros)", "ft / in (Pies y Pulgadas)", "in (Pulgadas totales)"]
 )
 
-# Formulario de entrada
 with st.form("form_imc"):
     sexo = st.selectbox("👤 Sexo", ["Masculino", "Femenino"])
 
@@ -72,7 +85,6 @@ with st.form("form_imc"):
     with col_peso2:
         unidad_peso = st.selectbox("Unidad", ["kg", "lb"], key="u_peso")
 
-    # Campos dinámicos según la unidad de estatura elegida
     if unidad_talla == "ft / in (Pies y Pulgadas)":
         col_ft, col_in = st.columns(2)
         with col_ft:
@@ -86,7 +98,6 @@ with st.form("form_imc"):
 
     calcular = st.form_submit_button("CALCULAR IMC (OMS)", type="primary", use_container_width=True)
 
-# Procesamiento y Resultados
 if calcular:
     edad_total_meses = edad_anios * 12 + edad_meses
 
@@ -96,7 +107,6 @@ if calcular:
         try:
             peso_kg = peso_val * 0.45359237 if unidad_peso == "lb" else peso_val
 
-            # Conversión exacta de estatura a centímetros
             if unidad_talla == "ft / in (Pies y Pulgadas)":
                 talla_cm = (pies * 30.48) + (pulgadas * 2.54)
             elif unidad_talla == "in (Pulgadas totales)":
@@ -108,7 +118,6 @@ if calcular:
 
             st.success("### 📋 Resultado de Evaluación")
 
-            # Caso 1: Niños y adolescentes (2 a 19 años -> 24 a 228 meses)
             if edad_total_meses <= 228:
                 z = calcular_puntaje_z_oms(imc, edad_total_meses, sexo, tablas)
                 clasificacion, icono = clasificar_bmi_oms(z, edad_total_meses)
@@ -120,7 +129,6 @@ if calcular:
                 st.markdown(f"**Diagnóstico:** {icono} **{clasificacion}**")
                 st.caption(f"Datos estandarizados: {peso_kg:.2f} kg | {talla_cm:.1f} cm | {edad_total_meses} meses (Estándar infantil/juvenil)")
 
-            # Caso 2: Adultos (mayores de 19 años -> más de 228 meses)
             else:
                 clasificacion, icono = clasificar_bmi_adulto(imc)
 
