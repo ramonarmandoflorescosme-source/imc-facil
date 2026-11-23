@@ -10,7 +10,7 @@ from calculos_oms import (
 st.set_page_config(page_title="IMC Fácil", page_icon="📊", layout="centered")
 
 
-@st.cache_data
+@st.cache_data(show_spinner="Cargando tablas de referencia OMS...")
 def cargar_tablas():
     tablas = {}
     faltantes = []
@@ -19,7 +19,7 @@ def cargar_tablas():
         if ruta.exists():
             tablas[clave] = pd.read_excel(ruta)
         else:
-            faltantes.append(str(ruta))
+            faltantes.append(f"{clave} -> {nombre_archivo}")
     return tablas, faltantes
 
 
@@ -44,6 +44,11 @@ tablas, archivos_faltantes = cargar_tablas()
 st.markdown("<h1 style='text-align: center; color: #1976D2; margin-bottom: 0;'>📊 IMC Fácil</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: gray; margin-bottom: 5px;'>Evaluación Nutricional • Estándares OMS (Niños, Adolescentes y Adultos)</p>", unsafe_allow_html=True)
 st.divider()
+
+if archivos_faltantes:
+    st.warning(
+        "⚠️ Faltan archivos OMS en la carpeta `data/`:\n- " + "\n- ".join(archivos_faltantes)
+    )
 
 # Selector de unidad de estatura fuera del formulario para que los campos cambien dinámicamente
 unidad_talla = st.selectbox(
