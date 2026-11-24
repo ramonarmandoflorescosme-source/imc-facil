@@ -48,6 +48,28 @@ AVISO_SALUD = (
 
 
 # ==========================================
+# NUEVO: LIMPIAR CAMPOS Y RESULTADOS
+# ==========================================
+
+def limpiar_campos():
+
+    valores_iniciales = {
+        "unidad_talla": "cm (Centímetros)",
+        "sexo": "Masculino",
+        "edad_anios": None,
+        "edad_meses": None,
+        "peso_val": None,
+        "unidad_peso": "kg",
+        "pies": None,
+        "pulgadas": None,
+        "talla_val": None,
+    }
+
+    for clave, valor in valores_iniciales.items():
+        st.session_state[clave] = valor
+
+
+# ==========================================
 # CARGAR TABLAS OMS
 # ==========================================
 
@@ -738,7 +760,8 @@ unidad_talla = st.selectbox(
         "cm (Centímetros)",
         "ft / in (Pies y Pulgadas)",
         "in (Pulgadas totales)"
-    ]
+    ],
+    key="unidad_talla"
 )
 
 
@@ -750,7 +773,8 @@ with st.form("form_imc"):
 
     sexo = st.selectbox(
         "👤 Sexo",
-        ["Masculino", "Femenino"]
+        ["Masculino", "Femenino"],
+        key="sexo"
     )
 
     col_edad1, col_edad2 = st.columns(2)
@@ -762,7 +786,8 @@ with st.form("form_imc"):
             min_value=2,
             max_value=120,
             value=None,
-            step=1
+            step=1,
+            key="edad_anios"
         )
 
     with col_edad2:
@@ -772,7 +797,8 @@ with st.form("form_imc"):
             min_value=0,
             max_value=11,
             value=None,
-            step=1
+            step=1,
+            key="edad_meses"
         )
 
     col_peso1, col_peso2 = st.columns([2, 1])
@@ -785,14 +811,16 @@ with st.form("form_imc"):
             max_value=300.0,
             value=None,
             step=0.1,
-            format="%.2f"
+            format="%.2f",
+            key="peso_val"
         )
 
     with col_peso2:
 
         unidad_peso = st.selectbox(
             "Unidad",
-            ["kg", "lb"]
+            ["kg", "lb"],
+            key="unidad_peso"
         )
 
     if unidad_talla == "ft / in (Pies y Pulgadas)":
@@ -806,7 +834,8 @@ with st.form("form_imc"):
                 min_value=1,
                 max_value=8,
                 value=None,
-                step=1
+                step=1,
+                key="pies"
             )
 
         with col_in:
@@ -816,7 +845,8 @@ with st.form("form_imc"):
                 min_value=0.0,
                 max_value=11.9,
                 value=None,
-                step=0.5
+                step=0.5,
+                key="pulgadas"
             )
 
     elif unidad_talla == "in (Pulgadas totales)":
@@ -826,7 +856,8 @@ with st.form("form_imc"):
             min_value=12.0,
             max_value=100.0,
             value=None,
-            step=0.5
+            step=0.5,
+            key="talla_val"
         )
 
     else:
@@ -836,7 +867,8 @@ with st.form("form_imc"):
             min_value=30.0,
             max_value=250.0,
             value=None,
-            step=0.5
+            step=0.5,
+            key="talla_val"
         )
 
     calcular = st.form_submit_button(
@@ -844,6 +876,17 @@ with st.form("form_imc"):
         type="primary",
         use_container_width=True
     )
+
+
+# ==========================================
+# NUEVO BOTÓN LIMPIAR
+# ==========================================
+
+st.button(
+    "🧹 LIMPIAR",
+    on_click=limpiar_campos,
+    use_container_width=True
+)
 
 
 # ==========================================
