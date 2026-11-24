@@ -7,7 +7,7 @@ import pandas as pd
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 
-# Archivos originales de referencia de la OMS
+# Archivos de referencia OMS
 ARCHIVOS_OMS = {
     "Masculino_2_5": "bmi_boys_2-to-5-years_zscores.xlsx",
     "Femenino_2_5": "bmi_girls_2-to-5-years_zscores.xlsx",
@@ -16,8 +16,32 @@ ARCHIVOS_OMS = {
 }
 
 
+def resolver_archivo_oms(nombre_archivo):
+    """
+    Busca un Excel por nombre dentro del proyecto,
+    incluyendo subcarpetas y respetando mayúsculas.
+    """
+
+    carpetas = [
+        BASE_DIR / "data",
+        BASE_DIR,
+    ]
+
+    for carpeta in carpetas:
+        if not carpeta.exists():
+            continue
+
+        for archivo in carpeta.rglob("*"):
+            if (
+                archivo.is_file()
+                and archivo.name.lower() == nombre_archivo.lower()
+            ):
+                return archivo
+
+    return None
+
+
 def _normalizar_columnas(df):
-    """Normaliza los nombres de las columnas."""
     df = df.copy()
     df.columns = [
         str(col).strip().lower().replace(" ", "").replace("_", "")
@@ -26,68 +50,57 @@ def _normalizar_columnas(df):
     return df
 
 
-def _obtener_columna(df, nombre):
-    """Busca una columna aunque cambie el uso de mayúsculas."""
-    nombre = nombre.lower().replace(" ", "").replace("_", "")
-    if nombre not in df.columns:
-        raise ValueError(
-            f"La tabla OMS no contiene la columna necesaria: {nombre}"
-        )
-    return nombre
-
-
 def obtener_lms(tabla, edad_meses):
-    """
-    Obtiene L, M y S para la edad indicada.
-    Si la edad está entre dos meses, interpola los valores.
-    """
+    """Obtiene los valores L, M y S de la tabla OMS."""
+
     if tabla is None or tabla.empty:
         raise ValueError("La tabla OMS está vacía.")
 
     df = _normalizar_columnas(tabla)
 
-    col_mes = _obtener_columna(df, "Month")
-    col_l = _obtener_columna(df, "L")
-    col_m = _obtener_columna(df, "M")
-    col_s = _obtener_columna(df, "S")
+    necesarias = ["month", "l", "m", "s"]
 
-    for columna in (col_mes, col_l, col_m, col_s):
-        df[columna] = pd.to_numeric(df[columna], errors="coerce")
+    for columna in necesarias:
+        if columna not in df.columns:
+            raise ValueError(
+                f"Falta la columna {columna} en la tabla OMS."
+            )
 
-    df = df.dropna(subset=[col_mes, col_l, col_m, col_s])
-    df = df.sort_values(col_mes)
+        df[columna] = pd.to_numeric(
+            df[columna],
+            errors="coerce"
+        )
+
+    df = df.dropna(subset=necesarias)
+    df = df.sort_values("month")
 
     if df.empty:
-        raise ValueError("No hay datos LMS válidos en la tabla OMS.")
+        raise ValueError("No hay datos LMS válidos.")
 
-    meses = df[col_mes].to_numpy(dtype=float)
+    meses = df["month"].to_numpy(dtype=float)
 
     if edad_meses < meses.min() or edad_meses > meses.max():
         raise ValueError(
-            f"La edad de {edad_meses} meses está fuera del rango "
-            f"de esta tabla ({meses.min():g} a {meses.max():g})."
+            f"Edad fuera del rango de la tabla: "
+            f"{meses.min():g} a {meses.max():g} meses."
         )
 
-    L = float(np.interp(edad_meses, meses, df[col_l]))
-    M = float(np.interp(edad_meses, meses, df[col_m]))
-    S = float(np.interp(edad_meses, meses, df[col_s]))
+    L = float(np.interp(edad_meses, meses, df["l"]))
+    M = float(np.interp(edad_meses, meses, df["m"]))
+    S = float(np.interp(edad_meses, meses, df["s"]))
 
     if M <= 0 or S <= 0:
-        raise ValueError("Los parámetros OMS M y S no son válidos.")
+        raise ValueError("Los valores OMS M y S no son válidos.")
 
     return L, M, S
 
 
-def calcular_puntaje_z_bmi(imc, edad_meses, sexo, tablas):
-    """Calcula el puntaje Z mediante el método LMS de la OMS."""
-    return calcular_puntaje_z_oms(imc, edad_meses, sexo, tablas)
-
-
 def calcular_puntaje_z_oms(imc, edad_meses, sexo, tablas):
+
     if imc <= 0:
         raise ValueError("El IMC debe ser mayor que cero.")
 
-    if edad_meses < 24 or edad_meses > 228:
+    if not 24 <= edad_meses <= 228:
         raise ValueError("La edad debe estar entre 24 y 228 meses.")
 
     sexo = str(sexo).strip().lower()
@@ -97,7 +110,7 @@ def calcular_puntaje_z_oms(imc, edad_meses, sexo, tablas):
     elif sexo in ("femenino", "mujer", "niña", "nina"):
         prefijo = "Femenino"
     else:
-        raise ValueError("Selecciona un sexo válido.")
+        raise ValueError("Sexo no válido.")
 
     if edad_meses <= 60:
         clave = f"{prefijo}_2_5"
@@ -105,7 +118,7 @@ def calcular_puntaje_z_oms(imc, edad_meses, sexo, tablas):
         clave = f"{prefijo}_5_19"
 
     if clave not in tablas:
-        raise ValueError(f"No se encontró la tabla OMS: {clave}")
+        raise ValueError(f"No se cargó la tabla OMS {clave}.")
 
     L, M, S = obtener_lms(tablas[clave], edad_meses)
 
@@ -115,18 +128,22 @@ def calcular_puntaje_z_oms(imc, edad_meses, sexo, tablas):
         z = ((imc / M) ** L - 1) / (L * S)
 
     if not np.isfinite(z):
-        raise ValueError("No se pudo calcular un puntaje Z válido.")
+        raise ValueError("El puntaje Z calculado no es válido.")
 
     return float(z)
 
 
+def calcular_puntaje_z_bmi(imc, edad_meses, sexo, tablas):
+    return calcular_puntaje_z_oms(
+        imc, edad_meses, sexo, tablas
+    )
+
+
 def clasificar_bmi_oms(z, edad_meses):
-    """Clasifica el IMC infantil según los puntos de corte OMS."""
 
-    if edad_meses < 24 or edad_meses > 228:
-        raise ValueError("La clasificación infantil requiere 24 a 228 meses.")
+    if not 24 <= edad_meses <= 228:
+        raise ValueError("Edad fuera del rango infantil OMS.")
 
-    # Niños menores de 5 años
     if edad_meses <= 60:
         if z < -3:
             return "Delgadez severa", "🔵"
@@ -141,7 +158,6 @@ def clasificar_bmi_oms(z, edad_meses):
         else:
             return "Obesidad", "🔴"
 
-    # Niños y adolescentes de 5 a 19 años
     else:
         if z < -3:
             return "Delgadez severa", "🔵"
