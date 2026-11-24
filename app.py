@@ -4,7 +4,7 @@ import streamlit as st
 
 from calculos_oms import (
     ARCHIVOS_OMS,
-    DATA_DIR,
+    resolver_archivo_oms,
     calcular_puntaje_z_oms,
     clasificar_bmi_oms,
 )
@@ -22,10 +22,13 @@ def cargar_tablas():
     problemas = []
 
     for clave, nombre_archivo in ARCHIVOS_OMS.items():
-        ruta = DATA_DIR / nombre_archivo
 
-        if not ruta.is_file():
-            problemas.append(f"No se encontró: {nombre_archivo}")
+        ruta = resolver_archivo_oms(nombre_archivo)
+
+        if ruta is None:
+            problemas.append(
+                f"No se encontró: {nombre_archivo}"
+            )
             continue
 
         try:
@@ -33,6 +36,7 @@ def cargar_tablas():
                 ruta,
                 engine="openpyxl"
             )
+
         except Exception as exc:
             problemas.append(
                 f"Error leyendo {nombre_archivo}: {exc}"
@@ -42,6 +46,7 @@ def cargar_tablas():
 
 
 def clasificar_bmi_adulto(imc):
+
     if imc < 18.5:
         return "Bajo peso", "🔵"
     elif imc < 25:
@@ -56,7 +61,7 @@ def clasificar_bmi_adulto(imc):
         return "Obesidad grado III", "🚨"
 
 
-# Cargar las tablas
+# Cargar referencias OMS
 tablas, problemas_archivos = cargar_tablas()
 
 
@@ -76,10 +81,19 @@ st.markdown(
 st.divider()
 
 
+# Mostrar problemas de archivos
 if problemas_archivos:
-    st.error("Hay problemas con los archivos OMS:")
+
+    st.error("Problemas con los archivos OMS:")
+
     for problema in problemas_archivos:
         st.write("- " + problema)
+
+
+# Verificar que se cargaron las cuatro tablas
+if not problemas_archivos:
+
+    st.success("¡Tablas OMS cargadas correctamente!")
 
 
 # Unidad de estatura
@@ -188,7 +202,7 @@ with st.form("form_imc"):
     )
 
 
-# Cálculo
+# Realizar cálculo
 if calcular:
 
     edad_total_meses = edad_anios * 12 + edad_meses
@@ -207,18 +221,21 @@ if calcular:
         )
 
         if unidad_talla == "ft / in (Pies y Pulgadas)":
+
             talla_cm = (
                 pies * 30.48
                 + pulgadas * 2.54
             )
 
         elif unidad_talla == "in (Pulgadas totales)":
+
             talla_cm = talla_val * 2.54
 
         else:
+
             talla_cm = talla_val
 
-        if talla_cm <= 0 or peso_kg <= 0:
+        if peso_kg <= 0 or talla_cm <= 0:
             raise ValueError(
                 "El peso y la estatura deben ser mayores que cero."
             )
@@ -257,12 +274,6 @@ if calcular:
                 f"**Diagnóstico:** {icono} **{clasificacion}**"
             )
 
-            st.caption(
-                f"Peso: {peso_kg:.2f} kg | "
-                f"Estatura: {talla_cm:.1f} cm | "
-                f"Edad: {edad_total_meses} meses"
-            )
-
         else:
 
             clasificacion, icono = clasificar_bmi_adulto(imc)
@@ -276,14 +287,17 @@ if calcular:
                 f"**Diagnóstico:** {icono} **{clasificacion}**"
             )
 
-            st.caption(
-                f"Peso: {peso_kg:.2f} kg | "
-                f"Estatura: {talla_cm:.1f} cm | "
-                f"Edad: {edad_anios} años"
-            )
+        st.caption(
+            f"Peso: {peso_kg:.2f} kg | "
+            f"Estatura: {talla_cm:.1f} cm | "
+            f"Edad: {edad_anios} años y {edad_meses} meses"
+        )
 
     except Exception as error:
-        st.error(f"⚠️ No se pudo completar el cálculo: {error}")
+
+        st.error(
+            f"⚠️ No se pudo completar el cálculo: {error}"
+        )
 
 
 st.divider()
