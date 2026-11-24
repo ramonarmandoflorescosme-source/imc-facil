@@ -47,6 +47,10 @@ AVISO_SALUD = (
 )
 
 
+# ==========================================
+# CARGAR TABLAS OMS
+# ==========================================
+
 @st.cache_data(show_spinner="Cargando tablas de referencia OMS...")
 def cargar_tablas():
 
@@ -77,6 +81,10 @@ def cargar_tablas():
     return tablas, problemas
 
 
+# ==========================================
+# CLASIFICACIÓN PARA ADULTOS
+# ==========================================
+
 def clasificar_bmi_adulto(imc):
 
     if imc < 18.5:
@@ -92,6 +100,10 @@ def clasificar_bmi_adulto(imc):
     else:
         return "Obesidad grado III", "🚨"
 
+
+# ==========================================
+# GENERAR PDF
+# ==========================================
 
 def crear_pdf(datos):
 
@@ -211,6 +223,10 @@ def crear_pdf(datos):
 
     return buffer.getvalue()
 
+
+# ==========================================
+# GENERAR IMAGEN PNG
+# ==========================================
 
 def crear_png(datos):
 
@@ -351,6 +367,10 @@ def crear_png(datos):
     return buffer.getvalue()
 
 
+# ==========================================
+# OPCIÓN DE IMPRESIÓN
+# ==========================================
+
 def mostrar_opcion_imprimir(datos):
 
     z_html = ""
@@ -472,11 +492,10 @@ def mostrar_opcion_imprimir(datos):
     )
 
 
-# Cargar referencias OMS
-tablas, problemas_archivos = cargar_tablas()
+# ==========================================
+# DISEÑO Y APARIENCIA
+# ==========================================
 
-
-# Encabezado
 st.markdown(
     """
     <h1 style="text-align:center; color:#1976D2;">
@@ -490,10 +509,213 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+st.markdown("### 🎨 Apariencia")
+
+tema = st.selectbox(
+    "Selecciona el tema",
+    [
+        "☀️ Claro",
+        "🌙 Oscuro",
+        "📱 Automático"
+    ],
+    key="tema_imc"
+)
+
+estilo_base = """
+<style>
+.stApp {
+    transition: background-color 0.3s, color 0.3s;
+}
+
+div[data-testid="stButton"] button,
+div[data-testid="stDownloadButton"] button,
+div[data-testid="stFormSubmitButton"] button {
+    border-radius: 12px;
+    min-height: 48px;
+    font-weight: 700;
+    border: none;
+    transition: 0.2s;
+}
+
+div[data-testid="stButton"] button:hover,
+div[data-testid="stDownloadButton"] button:hover,
+div[data-testid="stFormSubmitButton"] button:hover {
+    transform: translateY(-2px);
+}
+
+div[data-testid="stMetric"] {
+    border-radius: 14px;
+    padding: 15px;
+    border: 1px solid #1976D2;
+}
+
+input, textarea, div[data-baseweb="select"] {
+    border-radius: 10px !important;
+}
+</style>
+"""
+
+estilo_claro = """
+<style>
+.stApp {
+    background-color: #F5F8FC;
+    color: #202B3C;
+}
+
+.stApp p, .stApp label, .stApp h1,
+.stApp h2, .stApp h3 {
+    color: #202B3C;
+}
+
+div[data-testid="stMetric"] {
+    background-color: white;
+}
+
+div[data-testid="stButton"] button,
+div[data-testid="stDownloadButton"] button {
+    background-color: #1976D2;
+    color: white;
+}
+
+div[data-testid="stFormSubmitButton"] button {
+    background-color: #16834A;
+    color: white;
+}
+</style>
+"""
+
+estilo_oscuro = """
+<style>
+.stApp {
+    background-color: #121A27;
+    color: #F1F5F9;
+}
+
+.stApp p, .stApp label, .stApp h1,
+.stApp h2, .stApp h3, .stApp span {
+    color: #F1F5F9;
+}
+
+div[data-testid="stMetric"] {
+    background-color: #1E293B;
+}
+
+div[data-testid="stButton"] button,
+div[data-testid="stDownloadButton"] button {
+    background-color: #2563EB;
+    color: white;
+}
+
+div[data-testid="stFormSubmitButton"] button {
+    background-color: #16834A;
+    color: white;
+}
+
+input, textarea, div[data-baseweb="select"] {
+    background-color: #263449 !important;
+    color: white !important;
+}
+</style>
+"""
+
+estilo_automatico = """
+<style>
+@media (prefers-color-scheme: dark) {
+    .stApp {
+        background-color: #121A27;
+        color: #F1F5F9;
+    }
+
+    .stApp p, .stApp label, .stApp h1,
+    .stApp h2, .stApp h3, .stApp span {
+        color: #F1F5F9;
+    }
+
+    div[data-testid="stMetric"] {
+        background-color: #1E293B;
+    }
+
+    div[data-testid="stButton"] button,
+    div[data-testid="stDownloadButton"] button {
+        background-color: #2563EB;
+        color: white;
+    }
+
+    div[data-testid="stFormSubmitButton"] button {
+        background-color: #16834A;
+        color: white;
+    }
+
+    input, textarea, div[data-baseweb="select"] {
+        background-color: #263449 !important;
+        color: white !important;
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    .stApp {
+        background-color: #F5F8FC;
+        color: #202B3C;
+    }
+
+    .stApp p, .stApp label, .stApp h1,
+    .stApp h2, .stApp h3 {
+        color: #202B3C;
+    }
+
+    div[data-testid="stMetric"] {
+        background-color: white;
+    }
+
+    div[data-testid="stButton"] button,
+    div[data-testid="stDownloadButton"] button {
+        background-color: #1976D2;
+        color: white;
+    }
+
+    div[data-testid="stFormSubmitButton"] button {
+        background-color: #16834A;
+        color: white;
+    }
+}
+</style>
+"""
+
+if tema == "☀️ Claro":
+
+    st.markdown(
+        estilo_base + estilo_claro,
+        unsafe_allow_html=True
+    )
+
+elif tema == "🌙 Oscuro":
+
+    st.markdown(
+        estilo_base + estilo_oscuro,
+        unsafe_allow_html=True
+    )
+
+else:
+
+    st.markdown(
+        estilo_base + estilo_automatico,
+        unsafe_allow_html=True
+    )
+
 st.divider()
 
 
-# Mostrar problemas de archivos
+# ==========================================
+# CARGAR REFERENCIAS OMS
+# ==========================================
+
+tablas, problemas_archivos = cargar_tablas()
+
+
+# ==========================================
+# ESTADO DE LAS TABLAS
+# ==========================================
+
 if problemas_archivos:
 
     st.error("Problemas con los archivos OMS:")
@@ -506,7 +728,10 @@ else:
     st.success("¡Tablas OMS cargadas correctamente!")
 
 
-# Unidad de estatura
+# ==========================================
+# UNIDAD DE ESTATURA
+# ==========================================
+
 unidad_talla = st.selectbox(
     "📏 Unidad de Talla / Estatura",
     [
@@ -517,7 +742,10 @@ unidad_talla = st.selectbox(
 )
 
 
-# Formulario
+# ==========================================
+# FORMULARIO
+# ==========================================
+
 with st.form("form_imc"):
 
     sexo = st.selectbox(
@@ -618,13 +846,13 @@ with st.form("form_imc"):
     )
 
 
-# Realizar cálculo
+# ==========================================
+# REALIZAR CÁLCULO
+# ==========================================
+
 if calcular:
 
     try:
-
-        # Edad y peso son obligatorios.
-        # Los meses adicionales son opcionales.
 
         if edad_anios is None:
             raise ValueError(
@@ -639,8 +867,6 @@ if calcular:
         if edad_meses is None:
             edad_meses = 0
 
-        # Verificar estatura
-
         if unidad_talla == "ft / in (Pies y Pulgadas)":
 
             if pies is None or pulgadas is None:
@@ -654,8 +880,6 @@ if calcular:
                 "Completa la estatura."
             )
 
-        # Edad total en meses
-
         edad_total_meses = (
             edad_anios * 12 + edad_meses
         )
@@ -665,15 +889,11 @@ if calcular:
                 "La edad mínima es de 2 años (24 meses)."
             )
 
-        # Convertir peso a kilogramos
-
         peso_kg = (
             peso_val * 0.45359237
             if unidad_peso == "lb"
             else peso_val
         )
-
-        # Convertir estatura a centímetros
 
         if unidad_talla == "ft / in (Pies y Pulgadas)":
 
@@ -701,8 +921,6 @@ if calcular:
 
         z = None
 
-        # Clasificación OMS hasta 19 años
-
         if edad_total_meses <= 228:
 
             if problemas_archivos:
@@ -724,13 +942,9 @@ if calcular:
 
         else:
 
-            # Clasificación adulta original
-
             clasificacion, icono = clasificar_bmi_adulto(
                 imc
             )
-
-        # Preparar información del resultado
 
         fecha = datetime.now().strftime("%d/%m/%Y")
 
@@ -749,7 +963,9 @@ if calcular:
             "fecha": fecha,
         }
 
-        # Mostrar resultado
+        # ==================================
+        # MOSTRAR RESULTADO
+        # ==================================
 
         st.success("### 📋 Resultado de Evaluación")
 
@@ -780,7 +996,9 @@ if calcular:
 
         st.divider()
 
-        # Descargar PDF
+        # ==================================
+        # DESCARGAS E IMPRESIÓN
+        # ==================================
 
         st.subheader("Guardar o imprimir resultado")
 
@@ -792,8 +1010,6 @@ if calcular:
             use_container_width=True
         )
 
-        # Descargar PNG
-
         st.download_button(
             "🖼️ DESCARGAR RESULTADO EN PNG",
             data=crear_png(datos_resultado),
@@ -802,13 +1018,9 @@ if calcular:
             use_container_width=True
         )
 
-        # Imprimir
-
         st.subheader("Imprimir resultado")
 
         mostrar_opcion_imprimir(datos_resultado)
-
-        # Aviso de salud
 
         st.info(
             "Aviso importante sobre la salud\n\n"
@@ -821,6 +1033,10 @@ if calcular:
             f"⚠️ No se pudo completar el cálculo: {error}"
         )
 
+
+# ==========================================
+# PIE DE PÁGINA
+# ==========================================
 
 st.divider()
 
