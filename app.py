@@ -5,7 +5,6 @@ from datetime import datetime
 from xml.sax.saxutils import escape
 import textwrap
 
-import numpy as np
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
@@ -50,6 +49,7 @@ AVISO_SALUD = (
 
 @st.cache_data(show_spinner="Cargando tablas de referencia OMS...")
 def cargar_tablas():
+
     tablas = {}
     problemas = []
 
@@ -139,7 +139,10 @@ def crear_pdf(datos):
             "Evaluación nutricional orientativa",
             subtitulo
         ),
-        Paragraph("<b>RESULTADO DE EVALUACIÓN</b>", estilos["Heading2"]),
+        Paragraph(
+            "RESULTADO DE EVALUACIÓN",
+            estilos["Heading2"]
+        ),
         Spacer(1, 10)
     ]
 
@@ -181,13 +184,20 @@ def crear_pdf(datos):
 
     contenido.append(tabla)
     contenido.append(Spacer(1, 25))
+
     contenido.append(
-        Paragraph("Aviso importante sobre la salud", estilos["Heading3"])
+        Paragraph(
+            "Aviso importante sobre la salud",
+            estilos["Heading3"]
+        )
     )
+
     contenido.append(
         Paragraph(escape(AVISO_SALUD), aviso)
     )
+
     contenido.append(Spacer(1, 25))
+
     contenido.append(
         Paragraph(
             "IMC Fácil v1.0 • Creado por RAFC",
@@ -198,6 +208,7 @@ def crear_pdf(datos):
     documento.build(contenido)
 
     buffer.seek(0)
+
     return buffer.getvalue()
 
 
@@ -210,10 +221,13 @@ def crear_png(datos):
         fuente_path = (
             "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
         )
+
         fuente = ImageFont.truetype(fuente_path, 32)
         fuente_titulo = ImageFont.truetype(fuente_path, 58)
         fuente_pequena = ImageFont.truetype(fuente_path, 25)
+
     except OSError:
+
         fuente = ImageFont.load_default()
         fuente_titulo = ImageFont.load_default()
         fuente_pequena = ImageFont.load_default()
@@ -241,7 +255,12 @@ def crear_png(datos):
         width=75
     )
 
-    alto = 250 + len(lineas) * 65 + len(aviso_lineas) * 40 + 180
+    alto = (
+        250
+        + len(lineas) * 65
+        + len(aviso_lineas) * 40
+        + 180
+    )
 
     imagen = Image.new(
         "RGB",
@@ -279,12 +298,14 @@ def crear_png(datos):
     y += 85
 
     for linea in lineas:
+
         dibujo.text(
             (margen, y),
             linea,
             fill="#222222",
             font=fuente
         )
+
         y += 65
 
     y += 25
@@ -299,12 +320,14 @@ def crear_png(datos):
     y += 55
 
     for linea in aviso_lineas:
+
         dibujo.text(
             (margen, y),
             linea,
             fill="#444444",
             font=fuente_pequena
         )
+
         y += 40
 
     y += 45
@@ -317,7 +340,12 @@ def crear_png(datos):
     )
 
     buffer = BytesIO()
-    imagen.save(buffer, format="PNG")
+
+    imagen.save(
+        buffer,
+        format="PNG"
+    )
+
     buffer.seek(0)
 
     return buffer.getvalue()
@@ -339,27 +367,33 @@ def mostrar_opcion_imprimir(datos):
     <html>
     <head>
     <meta charset="UTF-8">
+
     <style>
+
         body {{
             font-family: Arial, sans-serif;
             padding: 20px;
             color: #222;
         }}
+
         .reporte {{
             border: 2px solid #1976D2;
             border-radius: 12px;
             padding: 25px;
             background: white;
         }}
+
         h1 {{
             color: #1976D2;
             text-align: center;
         }}
+
         .aviso {{
             font-size: 13px;
             line-height: 1.5;
             margin-top: 25px;
         }}
+
         button {{
             background: #1976D2;
             color: white;
@@ -370,31 +404,63 @@ def mostrar_opcion_imprimir(datos):
             cursor: pointer;
             margin-bottom: 15px;
         }}
+
         @media print {{
-            button {{ display: none; }}
-            body {{ padding: 0; }}
+            button {{
+                display: none;
+            }}
+
+            body {{
+                padding: 0;
+            }}
         }}
+
     </style>
     </head>
+
     <body>
-        <button onclick="window.print()">IMPRIMIR RESULTADO</button>
+
+        <button onclick="window.print()">
+            IMPRIMIR RESULTADO
+        </button>
+
         <div class="reporte">
+
             <h1>IMC Fácil</h1>
+
             <h3>Resultado de evaluación</h3>
+
             <p><b>IMC:</b> {datos['imc']:.2f} kg/m²</p>
+
             {z_html}
-            <p><b>Clasificación:</b> {escape(datos['clasificacion'])}</p>
+
+            <p>
+                <b>Clasificación:</b>
+                {escape(datos['clasificacion'])}
+            </p>
+
             <p><b>Edad:</b> {escape(datos['edad'])}</p>
+
             <p><b>Sexo:</b> {escape(datos['sexo'])}</p>
+
             <p><b>Peso:</b> {datos['peso']:.2f} kg</p>
+
             <p><b>Estatura:</b> {datos['estatura']:.1f} cm</p>
+
             <p><b>Fecha:</b> {escape(datos['fecha'])}</p>
+
             <div class="aviso">
+
                 <h3>Aviso importante sobre la salud</h3>
+
                 {aviso_html}
+
             </div>
+
             <p>IMC Fácil v1.0 • Creado por RAFC</p>
+
         </div>
+
     </body>
     </html>
     """
@@ -416,6 +482,7 @@ st.markdown(
     <h1 style="text-align:center; color:#1976D2;">
         📊 IMC Fácil
     </h1>
+
     <p style="text-align:center; color:gray;">
         Evaluación Nutricional • Estándares OMS
     </p>
@@ -461,6 +528,7 @@ with st.form("form_imc"):
     col_edad1, col_edad2 = st.columns(2)
 
     with col_edad1:
+
         edad_anios = st.number_input(
             "📅 Edad (años)",
             min_value=2,
@@ -470,6 +538,7 @@ with st.form("form_imc"):
         )
 
     with col_edad2:
+
         edad_meses = st.number_input(
             "Meses adicionales",
             min_value=0,
@@ -481,6 +550,7 @@ with st.form("form_imc"):
     col_peso1, col_peso2 = st.columns([2, 1])
 
     with col_peso1:
+
         peso_val = st.number_input(
             "⚖️ Peso",
             min_value=0.1,
@@ -491,6 +561,7 @@ with st.form("form_imc"):
         )
 
     with col_peso2:
+
         unidad_peso = st.selectbox(
             "Unidad",
             ["kg", "lb"]
@@ -501,6 +572,7 @@ with st.form("form_imc"):
         col_ft, col_in = st.columns(2)
 
         with col_ft:
+
             pies = st.number_input(
                 "Estatura (Pies / ft)",
                 min_value=1,
@@ -510,6 +582,7 @@ with st.form("form_imc"):
             )
 
         with col_in:
+
             pulgadas = st.number_input(
                 "Pulgadas adicionales",
                 min_value=0.0,
@@ -550,14 +623,23 @@ if calcular:
 
     try:
 
-        if (
-            edad_anios is None
-            or edad_meses is None
-            or peso_val is None
-        ):
+        # Edad y peso son obligatorios.
+        # Los meses adicionales son opcionales.
+
+        if edad_anios is None:
             raise ValueError(
-                "Completa la edad, los meses adicionales y el peso."
+                "Completa la edad en años."
             )
+
+        if peso_val is None:
+            raise ValueError(
+                "Completa el peso."
+            )
+
+        if edad_meses is None:
+            edad_meses = 0
+
+        # Verificar estatura
 
         if unidad_talla == "ft / in (Pies y Pulgadas)":
 
@@ -567,22 +649,31 @@ if calcular:
                 )
 
         elif talla_val is None:
+
             raise ValueError(
                 "Completa la estatura."
             )
 
-        edad_total_meses = edad_anios * 12 + edad_meses
+        # Edad total en meses
+
+        edad_total_meses = (
+            edad_anios * 12 + edad_meses
+        )
 
         if edad_total_meses < 24:
             raise ValueError(
                 "La edad mínima es de 2 años (24 meses)."
             )
 
+        # Convertir peso a kilogramos
+
         peso_kg = (
             peso_val * 0.45359237
             if unidad_peso == "lb"
             else peso_val
         )
+
+        # Convertir estatura a centímetros
 
         if unidad_talla == "ft / in (Pies y Pulgadas)":
 
@@ -604,9 +695,13 @@ if calcular:
                 "El peso y la estatura deben ser mayores que cero."
             )
 
+        # Fórmula original del IMC: no modificada
+
         imc = peso_kg / ((talla_cm / 100) ** 2)
 
         z = None
+
+        # Clasificación OMS hasta 19 años
 
         if edad_total_meses <= 228:
 
@@ -629,7 +724,13 @@ if calcular:
 
         else:
 
-            clasificacion, icono = clasificar_bmi_adulto(imc)
+            # Clasificación adulta original
+
+            clasificacion, icono = clasificar_bmi_adulto(
+                imc
+            )
+
+        # Preparar información del resultado
 
         fecha = datetime.now().strftime("%d/%m/%Y")
 
@@ -648,6 +749,8 @@ if calcular:
             "fecha": fecha,
         }
 
+        # Mostrar resultado
+
         st.success("### 📋 Resultado de Evaluación")
 
         col1, col2 = st.columns(2)
@@ -658,6 +761,7 @@ if calcular:
         )
 
         if z is not None:
+
             col2.metric(
                 "Puntaje Z (OMS)",
                 f"{z:+.2f} DE"
@@ -676,6 +780,8 @@ if calcular:
 
         st.divider()
 
+        # Descargar PDF
+
         st.subheader("Guardar o imprimir resultado")
 
         st.download_button(
@@ -686,6 +792,8 @@ if calcular:
             use_container_width=True
         )
 
+        # Descargar PNG
+
         st.download_button(
             "🖼️ DESCARGAR RESULTADO EN PNG",
             data=crear_png(datos_resultado),
@@ -694,11 +802,17 @@ if calcular:
             use_container_width=True
         )
 
+        # Imprimir
+
         st.subheader("Imprimir resultado")
+
         mostrar_opcion_imprimir(datos_resultado)
 
+        # Aviso de salud
+
         st.info(
-            "Aviso importante sobre la salud\n\n" + AVISO_SALUD
+            "Aviso importante sobre la salud\n\n"
+            + AVISO_SALUD
         )
 
     except Exception as error:
