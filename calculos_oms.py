@@ -1,153 +1,155 @@
-import os
+
 from pathlib import Path
+import numpy as np
 import pandas as pd
-import streamlit as st
-from calculos_oms import (
-    ARCHIVOS_OMS,
-    DATA_DIR,
-    calcular_puntaje_z_oms,
-    clasificar_bmi_oms,
-)
 
-st.set_page_config(page_title="IMC Fácil", page_icon="📊", layout="centered")
+# Carpeta principal del proyecto
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
 
-st.write("Archivo actual (__file__):", str(Path(__file__).resolve()))
-st.write("Directorio de trabajo (cwd):", str(Path.cwd()))
-st.write("Contenido de cwd:", os.listdir(Path.cwd()))
-if (Path.cwd() / "data").exists():
-    st.write("Contenido de cwd/data:", os.listdir(Path.cwd() / "data"))
-else:
-    st.write("NO existe cwd/data")
+# Archivos originales de referencia de la OMS
+ARCHIVOS_OMS = {
+    "Masculino_2_5": "bmi_boys_2-to-5-years_zscores.xlsx",
+    "Femenino_2_5": "bmi_girls_2-to-5-years_zscores.xlsx",
+    "Masculino_5_19": "bmi-boys-z-who-2007-exp.xlsx",
+    "Femenino_5_19": "bmi-girls-z-who-2007-exp.xlsx",
+}
 
 
-def _resolver_ruta_data(nombre_archivo: str) -> Path | None:
-    candidatas = [
-        DATA_DIR / nombre_archivo,
-        Path.cwd() / "data" / nombre_archivo,
-        Path(__file__).resolve().parent / "data" / nombre_archivo,
-        Path(__file__).resolve().parent.parent / "data" / nombre_archivo,
+def _normalizar_columnas(df):
+    """Normaliza los nombres de las columnas."""
+    df = df.copy()
+    df.columns = [
+        str(col).strip().lower().replace(" ", "").replace("_", "")
+        for col in df.columns
     ]
-    for ruta in candidatas:
-        if ruta.exists() and ruta.is_file():
-            return ruta
-    return None
+    return df
 
 
-@st.cache_data(show_spinner="Cargando tablas de referencia OMS...")
-def cargar_tablas():
-    tablas = {}
-    problemas = []
-
-    for clave, nombre_archivo in ARCHIVOS_OMS.items():
-        ruta = _resolver_ruta_data(nombre_archivo)
-        if ruta is None:
-            problemas.append(f"{clave} -> `{nombre_archivo}` (no encontrado)")
-            continue
-        try:
-            tablas[clave] = pd.read_excel(ruta, engine="openpyxl")
-        except Exception as exc:
-            problemas.append(f"{clave} -> `{nombre_archivo}` (error al leer: {exc})")
-
-    return tablas, problemas
+def _obtener_columna(df, nombre):
+    """Busca una columna aunque cambie el uso de mayúsculas."""
+    nombre = nombre.lower().replace(" ", "").replace("_", "")
+    if nombre not in df.columns:
+        raise ValueError(
+            f"La tabla OMS no contiene la columna necesaria: {nombre}"
+        )
+    return nombre
 
 
-def clasificar_bmi_adulto(imc):
-    if imc < 18.5:
-        return "Bajo peso", "🔵"
-    elif 18.5 <= imc < 25.0:
-        return "Peso normal", "🟢"
-    elif 25.0 <= imc < 30.0:
-        return "Sobrepeso", "🟡"
-    elif 30.0 <= imc < 35.0:
-        return "Obesidad grado I", "🟠"
-    elif 35.0 <= imc < 40.0:
-        return "Obesidad grado II", "🔴"
+def obtener_lms(tabla, edad_meses):
+    """
+    Obtiene L, M y S para la edad indicada.
+    Si la edad está entre dos meses, interpola los valores.
+    """
+    if tabla is None or tabla.empty:
+        raise ValueError("La tabla OMS está vacía.")
+
+    df = _normalizar_columnas(tabla)
+
+    col_mes = _obtener_columna(df, "Month")
+    col_l = _obtener_columna(df, "L")
+    col_m = _obtener_columna(df, "M")
+    col_s = _obtener_columna(df, "S")
+
+    for columna in (col_mes, col_l, col_m, col_s):
+        df[columna] = pd.to_numeric(df[columna], errors="coerce")
+
+    df = df.dropna(subset=[col_mes, col_l, col_m, col_s])
+    df = df.sort_values(col_mes)
+
+    if df.empty:
+        raise ValueError("No hay datos LMS válidos en la tabla OMS.")
+
+    meses = df[col_mes].to_numpy(dtype=float)
+
+    if edad_meses < meses.min() or edad_meses > meses.max():
+        raise ValueError(
+            f"La edad de {edad_meses} meses está fuera del rango "
+            f"de esta tabla ({meses.min():g} a {meses.max():g})."
+        )
+
+    L = float(np.interp(edad_meses, meses, df[col_l]))
+    M = float(np.interp(edad_meses, meses, df[col_m]))
+    S = float(np.interp(edad_meses, meses, df[col_s]))
+
+    if M <= 0 or S <= 0:
+        raise ValueError("Los parámetros OMS M y S no son válidos.")
+
+    return L, M, S
+
+
+def calcular_puntaje_z_bmi(imc, edad_meses, sexo, tablas):
+    """Calcula el puntaje Z mediante el método LMS de la OMS."""
+    return calcular_puntaje_z_oms(imc, edad_meses, sexo, tablas)
+
+
+def calcular_puntaje_z_oms(imc, edad_meses, sexo, tablas):
+    if imc <= 0:
+        raise ValueError("El IMC debe ser mayor que cero.")
+
+    if edad_meses < 24 or edad_meses > 228:
+        raise ValueError("La edad debe estar entre 24 y 228 meses.")
+
+    sexo = str(sexo).strip().lower()
+
+    if sexo in ("masculino", "hombre", "niño", "nino"):
+        prefijo = "Masculino"
+    elif sexo in ("femenino", "mujer", "niña", "nina"):
+        prefijo = "Femenino"
     else:
-        return "Obesidad grado III", "🚨"
+        raise ValueError("Selecciona un sexo válido.")
 
-
-tablas, problemas_archivos = cargar_tablas()
-
-st.markdown("<h1 style='text-align: center; color: #1976D2; margin-bottom: 0;'>📊 IMC Fácil</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: gray; margin-bottom: 5px;'>Evaluación Nutricional • Estándares OMS (Niños, Adolescentes y Adultos)</p>", unsafe_allow_html=True)
-st.divider()
-
-if problemas_archivos:
-    st.warning("⚠️ Problema con archivos OMS en `data/`:\n- " + "\n- ".join(problemas_archivos))
-
-unidad_talla = st.selectbox(
-    "📏 Unidad de Talla / Estatura",
-    ["cm (Centímetros)", "ft / in (Pies y Pulgadas)", "in (Pulgadas totales)"]
-)
-
-with st.form("form_imc"):
-    sexo = st.selectbox("👤 Sexo", ["Masculino", "Femenino"])
-
-    col_edad1, col_edad2 = st.columns(2)
-    with col_edad1:
-        edad_anios = st.number_input("📅 Edad (años)", min_value=2, max_value=120, value=5, step=1)
-    with col_edad2:
-        edad_meses = st.number_input("Meses adicionales", min_value=0, max_value=11, value=0, step=1)
-
-    col_peso1, col_peso2 = st.columns([2, 1])
-    with col_peso1:
-        peso_val = st.number_input("⚖️ Peso", min_value=0.1, max_value=300.0, value=18.0, step=0.1, format="%.2f")
-    with col_peso2:
-        unidad_peso = st.selectbox("Unidad", ["kg", "lb"], key="u_peso")
-
-    if unidad_talla == "ft / in (Pies y Pulgadas)":
-        col_ft, col_in = st.columns(2)
-        with col_ft:
-            pies = st.number_input("📏 Estatura (Pies / ft)", min_value=1, max_value=8, value=5, step=1)
-        with col_in:
-            pulgadas = st.number_input("Pulgadas adicionales (in)", min_value=0.0, max_value=11.9, value=6.0, step=0.5, format="%.1f")
-    elif unidad_talla == "in (Pulgadas totales)":
-        talla_val = st.number_input("📏 Talla / Estatura (Pulgadas totales)", min_value=12.0, max_value=100.0, value=45.0, step=0.5, format="%.1f")
+    if edad_meses <= 60:
+        clave = f"{prefijo}_2_5"
     else:
-        talla_val = st.number_input("📏 Talla / Estatura (cm)", min_value=30.0, max_value=250.0, value=110.0, step=0.5, format="%.1f")
+        clave = f"{prefijo}_5_19"
 
-    calcular = st.form_submit_button("CALCULAR IMC (OMS)", type="primary", use_container_width=True)
+    if clave not in tablas:
+        raise ValueError(f"No se encontró la tabla OMS: {clave}")
 
-if calcular:
-    edad_total_meses = edad_anios * 12 + edad_meses
+    L, M, S = obtener_lms(tablas[clave], edad_meses)
 
-    if edad_total_meses < 24:
-        st.error("⚠️ La edad mínima para esta calculadora es de 2 años (24 meses).")
+    if abs(L) < 1e-10:
+        z = np.log(imc / M) / S
     else:
-        try:
-            peso_kg = peso_val * 0.45359237 if unidad_peso == "lb" else peso_val
+        z = ((imc / M) ** L - 1) / (L * S)
 
-            if unidad_talla == "ft / in (Pies y Pulgadas)":
-                talla_cm = (pies * 30.48) + (pulgadas * 2.54)
-            elif unidad_talla == "in (Pulgadas totales)":
-                talla_cm = talla_val * 2.54
-            else:
-                talla_cm = talla_val
+    if not np.isfinite(z):
+        raise ValueError("No se pudo calcular un puntaje Z válido.")
 
-            imc = peso_kg / ((talla_cm / 100) ** 2)
+    return float(z)
 
-            st.success("### 📋 Resultado de Evaluación")
 
-            if edad_total_meses <= 228:
-                z = calcular_puntaje_z_oms(imc, edad_total_meses, sexo, tablas)
-                clasificacion, icono = clasificar_bmi_oms(z, edad_total_meses)
+def clasificar_bmi_oms(z, edad_meses):
+    """Clasifica el IMC infantil según los puntos de corte OMS."""
 
-                c1, c2 = st.columns(2)
-                c1.metric(label="IMC Calculado", value=f"{imc:.2f} kg/m²")
-                c2.metric(label="Puntaje Z (OMS)", value=f"{z:+.2f} DE")
+    if edad_meses < 24 or edad_meses > 228:
+        raise ValueError("La clasificación infantil requiere 24 a 228 meses.")
 
-                st.markdown(f"**Diagnóstico:** {icono} **{clasificacion}**")
-                st.caption(f"Datos estandarizados: {peso_kg:.2f} kg | {talla_cm:.1f} cm | {edad_total_meses} meses (Estándar infantil/juvenil)")
+    # Niños menores de 5 años
+    if edad_meses <= 60:
+        if z < -3:
+            return "Delgadez severa", "🔵"
+        elif z < -2:
+            return "Delgadez", "🟡"
+        elif z <= 1:
+            return "Peso adecuado", "🟢"
+        elif z <= 2:
+            return "Riesgo de sobrepeso", "🟡"
+        elif z <= 3:
+            return "Sobrepeso", "🟠"
+        else:
+            return "Obesidad", "🔴"
 
-            else:
-                clasificacion, icono = clasificar_bmi_adulto(imc)
-
-                st.metric(label="IMC Calculado", value=f"{imc:.2f} kg/m²")
-                st.markdown(f"**Diagnóstico:** {icono} **{clasificacion}**")
-                st.caption(f"Datos estandarizados: {peso_kg:.2f} kg | {talla_cm:.1f} cm | {edad_anios} años (Estándar adultos OMS)")
-
-        except (ValueError, KeyError) as e:
-            st.error(f"⚠️ {e}")
-
-st.divider()
-st.markdown("<p style='text-align: center; color: gray; font-size: 0.85em;'>IMC Fácil v1.0 • Creado por RAFC (2026)</p>", unsafe_allow_html=True)
+    # Niños y adolescentes de 5 a 19 años
+    else:
+        if z < -3:
+            return "Delgadez severa", "🔵"
+        elif z < -2:
+            return "Delgadez", "🟡"
+        elif z <= 1:
+            return "Peso adecuado", "🟢"
+        elif z <= 2:
+            return "Sobrepeso", "🟠"
+        else:
+            return "Obesidad", "🔴"
